@@ -55,8 +55,6 @@ jobs:
 
       - name: Download MLflow artifacts
         run: |
-          - name: Download MLflow artifacts
-        run: |
           mkdir -p /tmp/mlflow_artifacts
           python -c "
           import mlflow, os
