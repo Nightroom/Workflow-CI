@@ -75,7 +75,8 @@ jobs:
         run: |
           mlflow models build-docker \
             --model-uri "runs:/${{ steps.get_run_id.outputs.run_id }}/model" \
-            --name titanic-model
+            --name titanic-model \
+            --env-manager=local
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
@@ -88,3 +89,4 @@ jobs:
 
       - name: Push Docker Image
         run: docker push ${{ secrets.DOCKER_USERNAME }}/titanic-model:latest
+	
