@@ -55,6 +55,9 @@ jobs:
 
       - name: Download MLflow artifacts
         run: |
+          - name: Download MLflow artifacts
+        run: |
+          mkdir -p /tmp/mlflow_artifacts
           python -c "
           import mlflow, os
           mlflow.set_tracking_uri(os.environ['MLFLOW_TRACKING_URI'])
