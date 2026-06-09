@@ -37,38 +37,43 @@ jobs:
           mlflow run MLProject --env-manager=local
 
       - name: Get latest MLflow run_id
+        id: get_run_id
         run: |
-          pip install mlflow
-          python -c "
-          import mlflow, os
-          mlflow.set_tracking_uri(os.environ['MLFLOW_TRACKING_URI'])
-          client = mlflow.tracking.MlflowClient()
-          exp = client.get_experiment_by_name('Titanic-Classification-CI')
-          runs = client.search_runs(exp.experiment_id, order_by=['start_time DESC'], max_results=1)
-          print('Latest run_id:', runs[0].info.run_id)
-          "
-
-      - name: Install Python dependencies for upload
-        run: pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
-
-      - name: Upload to Google Drive
-        uses: adityakumar2809/google-drive-upload@main
-        with:
-          credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
-          filename: 'MLProject'
-          folderId: ${{ secrets.GDRIVE_FOLDER_ID }}
-
-      - name: Build Docker Model
-        run: |
-          mlflow models build-docker \
-            --model-uri "runs:/$(python -c "
+          RUN_ID=$(python -c "
           import mlflow, os
           mlflow.set_tracking_uri(os.environ['MLFLOW_TRACKING_URI'])
           client = mlflow.tracking.MlflowClient()
           exp = client.get_experiment_by_name('Titanic-Classification-CI')
           runs = client.search_runs(exp.experiment_id, order_by=['start_time DESC'], max_results=1)
           print(runs[0].info.run_id)
-          ")/model" \
+          ")
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "Latest run_id: $RUN_ID"
+
+      - name: Install Python dependencies for artifact download
+        run: pip install mlflow==2.19.0
+
+      - name: Download MLflow artifacts
+        run: |
+          python -c "
+          import mlflow, os
+          mlflow.set_tracking_uri(os.environ['MLFLOW_TRACKING_URI'])
+          client = mlflow.tracking.MlflowClient()
+          run_id = '${{ steps.get_run_id.outputs.run_id }}'
+          client.download_artifacts(run_id, 'model', '/tmp/mlflow_artifacts')
+          print('Artifacts downloaded!')
+          "
+
+      - name: Upload artifacts to GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlflow-model-artifacts
+          path: /tmp/mlflow_artifacts/
+
+      - name: Build Docker Model
+        run: |
+          mlflow models build-docker \
+            --model-uri "runs:/${{ steps.get_run_id.outputs.run_id }}/model" \
             --name titanic-model
 
       - name: Log in to Docker Hub
